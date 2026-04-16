@@ -435,7 +435,8 @@ function renderTemplateChoices(list) {
       input.checked = true;
       label.appendChild(input);
       const span = document.createElement("span");
-      span.textContent = d.label || d.id;
+      const fn = d.path ? pathBasename(d.path) : "";
+      span.textContent = (d.label || d.id) + (fn ? " (" + fn + ")" : "");
       label.appendChild(span);
       fieldset.appendChild(label);
     });
@@ -597,7 +598,10 @@ async function loadDocsChoices() {
   }
 
   const apiUrl = new URL("./api/docs", window.location.href).toString();
-  const manifestUrls = [new URL("docs-manifest.json", SCRIPT_DIR).toString()];
+  const manifestUrls = [
+    new URL("docs-manifest.json", SCRIPT_DIR).toString(),
+    new URL("docs-manifest.json", new URL("./", window.location.href).toString()).toString(),
+  ];
   const preferStatic =
     /\.github\.io$/i.test(window.location.hostname) ||
     /(^|\.)githubusercontent\.com$/i.test(window.location.hostname);
@@ -621,7 +625,10 @@ async function loadDocsChoices() {
   }
 
   try {
-    if (!preferStatic) {
+    if (preferStatic) {
+      if (await tryStaticDocs()) {
+        return;
+      }
       try {
         const data = await fetchJson(apiUrl, { signal: apiFetchSignal() });
         renderDocChoices(data.files || []);
@@ -629,17 +636,16 @@ async function loadDocsChoices() {
       } catch (_) {
         /* fall through */
       }
-    }
-    if (await tryStaticDocs()) {
-      return;
-    }
-    if (preferStatic) {
+    } else {
       try {
         const data = await fetchJson(apiUrl, { signal: apiFetchSignal() });
         renderDocChoices(data.files || []);
         return;
       } catch (_) {
-        /* already tried static */
+        /* fall through */
+      }
+      if (await tryStaticDocs()) {
+        return;
       }
     }
     clearDocsChoiceChildren(fieldset);
@@ -655,6 +661,11 @@ async function loadDocsChoices() {
     p.textContent = err && err.message ? err.message : "Failed to load docs.";
     fieldset.appendChild(p);
     resolvedDocs = [];
+  } finally {
+    const stillLoading = document.getElementById("docs-choices-loading");
+    if (stillLoading) {
+      stillLoading.remove();
+    }
   }
 }
 
