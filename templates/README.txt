@@ -1,4 +1,4 @@
-Place your Word templates in this folder (list them in manifest.json).
+Place your Word templates in this folder (list them in public/templates-manifest.json).
 
 All form fields are merged into every template. Use double braces. Tags are
 case-sensitive in Word, but this app sends BOTH forms so either works:
@@ -8,7 +8,7 @@ case-sensitive in Word, but this app sends BOTH forms so either works:
   … same for every field name in the form.
   {{first_record_mobile_number}}  …  {{second_record_aadhar_number}}  etc.
 
-Download filename is controlled per variant by "filenameParty" in manifest.json:
+Download filename is controlled per variant by "filenameParty" in public/templates-manifest.json:
 
   "filenameParty": "first"  →  <FirstSurname>_<FirstGiven>_<outputSuffix>.docx
   "filenameParty": "second" →  <outputSuffix>.docx
