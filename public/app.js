@@ -1,4 +1,10 @@
 (function () {
+  const scriptEl = document.currentScript;
+  const SCRIPT_DIR =
+    scriptEl && scriptEl.src
+      ? new URL("./", scriptEl.src).href
+      : new URL("./", window.location.href).href;
+
   const form = document.getElementById("pack-form");
   const statusEl = document.getElementById("status");
   const btnGenerate = document.getElementById("btn-generate");
@@ -265,13 +271,14 @@ Father's name-
 
   function renderTemplateChoices(list) {
     const fieldset = document.getElementById("template-choices");
-    const loading = document.getElementById("template-choices-loading");
-    if (loading) loading.remove();
+    fieldset.querySelectorAll(":scope > *:not(legend)").forEach(function (el) {
+      el.remove();
+    });
 
     if (!Array.isArray(list) || list.length === 0) {
       const p = document.createElement("p");
       p.className = "hint warn";
-      p.textContent = "No variants in templates/manifest.json.";
+      p.textContent = "No variants in public/templates-manifest.json.";
       fieldset.appendChild(p);
       return;
     }
@@ -314,50 +321,66 @@ Father's name-
 
   async function loadTemplateChoices() {
     const fieldset = document.getElementById("template-choices");
-    try {
-      if (window.location.protocol === "file:") {
-        throw new Error(
-          "Open http://localhost:3847 (npm start in agreement-packager). Do not open this HTML as a file."
-        );
-      }
 
-      const res = await fetch("./api/templates");
+    async function fetchJson(url) {
+      const res = await fetch(url);
       if (!res.ok) {
-        const snippet = (await res.text()).replace(/\s+/g, " ").slice(0, 120);
-        if (res.status === 404) {
-          throw new Error(
-            "No ./api/templates on this host — restart locally with npm start, or use the server deployment."
-          );
-        }
-        throw new Error(snippet || "Could not load template options.");
+        throw new Error("HTTP " + res.status);
       }
-      const data = await res.json();
+      return res.json();
+    }
+
+    if (window.location.protocol === "file:") {
+      const loading = document.getElementById("template-choices-loading");
+      if (loading) loading.remove();
+      const p = document.createElement("p");
+      p.className = "parse-feedback warn";
+      p.textContent =
+        "Open this app over http(s) (GitHub Pages or npm start). file:// cannot load the template list.";
+      fieldset.appendChild(p);
+      backendAvailable = false;
+      return;
+    }
+
+    const apiUrl = new URL("./api/templates", window.location.href).toString();
+    try {
+      const data = await fetchJson(apiUrl);
       renderTemplateChoices(data.variants || []);
-    } catch (err) {
+      backendAvailable = true;
+      return;
+    } catch (_) {
+      /* try static manifests (GitHub Pages has no API) */
+    }
+
+    const manifestUrls = [
+      new URL("templates-manifest.json", SCRIPT_DIR).toString(),
+      new URL("../templates/manifest.json", SCRIPT_DIR).toString(),
+      new URL("../templates/manifest.json", window.location.href).toString(),
+    ];
+
+    for (let i = 0; i < manifestUrls.length; i += 1) {
       try {
-        // Static fallback for GitHub Pages: load template list directly.
-        const fallbackUrl = new URL("../templates/manifest.json", window.location.href).toString();
-        const manifestRes = await fetch(fallbackUrl);
-        if (!manifestRes.ok) {
-          throw new Error("Failed to load templates from templates/manifest.json.");
-        }
-        const manifest = await manifestRes.json();
+        const manifest = await fetchJson(manifestUrls[i]);
         renderTemplateChoices(manifest.variants || []);
         backendAvailable = false;
         setStatus(
           "Template list loaded from static manifest. ZIP generation needs the backend server.",
           false
         );
-      } catch (fallbackErr) {
-        const loading = document.getElementById("template-choices-loading");
-        if (loading) loading.remove();
-        const p = document.createElement("p");
-        p.className = "parse-feedback warn";
-        p.textContent =
-          fallbackErr.message || err.message || "Failed to load templates.";
-        fieldset.appendChild(p);
+        return;
+      } catch (_) {
+        /* try next URL */
       }
     }
+
+    const loading = document.getElementById("template-choices-loading");
+    if (loading) loading.remove();
+    const p = document.createElement("p");
+    p.className = "parse-feedback warn";
+    p.textContent =
+      "Could not load template options (API unavailable and templates-manifest.json missing or blocked).";
+    fieldset.appendChild(p);
+    backendAvailable = false;
   }
 
   loadTemplateChoices();
@@ -442,26 +465,3 @@ Father's name-
       btnDownload.disabled = false;
       hintAfterGenerate.textContent = "ZIP is ready — click Download.";
       setStatus("Ready to download.");
-    } catch (err) {
-      lastZipBlob = null;
-      btnDownload.disabled = true;
-      setStatus(err.message || "Something went wrong.", true);
-    } finally {
-      btnGenerate.disabled = false;
-    }
-  });
-
-  btnDownload.addEventListener("click", function () {
-    if (!lastZipBlob) {
-      setStatus("Click “Fill templates (generate ZIP)” first.", true);
-      return;
-    }
-    const url = URL.createObjectURL(lastZipBlob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = lastZipName;
-    a.click();
-    URL.revokeObjectURL(url);
-    setStatus("Download started.");
-  });
-})();
