@@ -292,12 +292,12 @@ Father's name-
         );
       }
 
-      const res = await fetch("/api/templates");
+      const res = await fetch("./api/templates");
       if (!res.ok) {
         const snippet = (await res.text()).replace(/\s+/g, " ").slice(0, 120);
         if (res.status === 404) {
           throw new Error(
-            "No /api/templates on this port — restart: cd agreement-packager && npm start"
+            "No ./api/templates on this host — restart locally with npm start, or use the server deployment."
           );
         }
         throw new Error(snippet || "Could not load template options.");
@@ -390,7 +390,7 @@ Father's name-
 
     btnGenerate.disabled = true;
     try {
-      const res = await fetch("/api/package", {
+      const res = await fetch("./api/package", {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
