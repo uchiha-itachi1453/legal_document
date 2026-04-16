@@ -8,7 +8,7 @@ const PizZip = require("pizzip");
 const Docxtemplater = require("docxtemplater");
 
 const PORT = process.env.PORT || 3847;
-const MANIFEST_PATH = path.join(__dirname, "templates", "manifest.json");
+const MANIFEST_PATH = path.join(__dirname, "public", "templates-manifest.json");
 const TEMPLATES_DIR = path.join(__dirname, "templates");
 
 const MERGE_FIELD_NAMES = [
