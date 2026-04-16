@@ -1,27 +1,32 @@
-const SCRIPT_DIR = new URL("./", import.meta.url).href;
+(function () {
+  var scriptEl = document.currentScript;
+  var SCRIPT_DIR =
+    scriptEl && scriptEl.src
+      ? new URL("./", scriptEl.src).href
+      : new URL("./", window.location.href).href;
 
-const form = document.getElementById("pack-form");
-const statusEl = document.getElementById("status");
-const btnGenerate = document.getElementById("btn-generate");
-const btnDownload = document.getElementById("btn-download");
-const hintAfterGenerate = document.getElementById("hint-after-generate");
+  const form = document.getElementById("pack-form");
+  const statusEl = document.getElementById("status");
+  const btnGenerate = document.getElementById("btn-generate");
+  const btnDownload = document.getElementById("btn-download");
+  const hintAfterGenerate = document.getElementById("hint-after-generate");
 
-const pasted1 = document.getElementById("pasted-details-1");
-const pasted2 = document.getElementById("pasted-details-2");
-const feedback1 = document.getElementById("parse-feedback-1");
-const feedback2 = document.getElementById("parse-feedback-2");
+  const pasted1 = document.getElementById("pasted-details-1");
+  const pasted2 = document.getElementById("pasted-details-2");
+  const feedback1 = document.getElementById("parse-feedback-1");
+  const feedback2 = document.getElementById("parse-feedback-2");
 
-/** Label line: `Key- value`, `Key: value`, or Unicode dashes */
-const LABEL_LINE = /^(.+?)[-–—:]\s*(.*)$/;
+  /** Label line: `Key- value`, `Key: value`, or Unicode dashes */
+  const LABEL_LINE = /^(.+?)[-–—:]\s*(.*)$/;
 
-let lastZipBlob = null;
-let lastZipName = "agreement-package.zip";
-/** When true, prefer server /api/package; falls back to in-browser fill on failure. */
-let backendAvailable = true;
-/** Variants from last successful template list load (API or static manifest). */
-let resolvedVariants = null;
+  let lastZipBlob = null;
+  let lastZipName = "agreement-package.zip";
+  /** When true, prefer server /api/package; falls back to in-browser fill on failure. */
+  let backendAvailable = true;
+  /** Variants from last successful template list load (API or static manifest). */
+  let resolvedVariants = null;
 
-const BLANK_TEMPLATE = `Surname-
+  const BLANK_TEMPLATE = `Surname-
 Given Name-
 
 Current Address-
@@ -742,3 +747,4 @@ btnDownload.addEventListener("click", function () {
   URL.revokeObjectURL(url);
   setStatus("Download started.");
 });
+})();
