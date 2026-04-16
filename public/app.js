@@ -333,11 +333,23 @@ function setStatus(msg, isError) {
   statusEl.classList.toggle("error", !!isError);
 }
 
+function clearTemplateChoiceChildren(fieldset) {
+  const loadingEl = document.getElementById("template-choices-loading");
+  if (loadingEl) {
+    loadingEl.remove();
+  }
+  if (!fieldset) return;
+  for (let i = fieldset.children.length - 1; i >= 0; i -= 1) {
+    const el = fieldset.children[i];
+    if (el.tagName !== "LEGEND") {
+      fieldset.removeChild(el);
+    }
+  }
+}
+
 function renderTemplateChoices(list) {
   const fieldset = document.getElementById("template-choices");
-  fieldset.querySelectorAll(":scope > *:not(legend)").forEach(function (el) {
-    el.remove();
-  });
+  clearTemplateChoiceChildren(fieldset);
 
   if (!Array.isArray(list) || list.length === 0) {
     resolvedVariants = null;
@@ -389,17 +401,23 @@ document.getElementById("btn-blank-2").addEventListener("click", function () {
 async function loadTemplateChoices() {
   const fieldset = document.getElementById("template-choices");
 
-  async function fetchJson(url) {
-    const res = await fetch(url);
+  async function fetchJson(url, fetchInit) {
+    const res = await fetch(url, fetchInit);
     if (!res.ok) {
       throw new Error("HTTP " + res.status);
     }
     return res.json();
   }
 
+  function apiFetchSignal() {
+    if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
+      return AbortSignal.timeout(6000);
+    }
+    return undefined;
+  }
+
   if (window.location.protocol === "file:") {
-    const loading = document.getElementById("template-choices-loading");
-    if (loading) loading.remove();
+    clearTemplateChoiceChildren(fieldset);
     const p = document.createElement("p");
     p.className = "parse-feedback warn";
     p.textContent =
@@ -411,45 +429,94 @@ async function loadTemplateChoices() {
   }
 
   const apiUrl = new URL("./api/templates", window.location.href).toString();
-  try {
-    const data = await fetchJson(apiUrl);
-    renderTemplateChoices(data.variants || []);
-    backendAvailable = true;
-    return;
-  } catch (_) {
-    /* try static manifests (GitHub Pages has no API) */
-  }
-
   const manifestUrls = [
     new URL("templates-manifest.json", SCRIPT_DIR).toString(),
     new URL("../templates/manifest.json", SCRIPT_DIR).toString(),
     new URL("../templates/manifest.json", window.location.href).toString(),
   ];
 
-  for (let i = 0; i < manifestUrls.length; i += 1) {
-    try {
-      const manifest = await fetchJson(manifestUrls[i]);
-      renderTemplateChoices(manifest.variants || []);
-      backendAvailable = false;
-      setStatus("", false);
-      return;
-    } catch (_) {
-      /* try next URL */
+  const preferStatic =
+    /\.github\.io$/i.test(window.location.hostname) ||
+    /(^|\.)githubusercontent\.com$/i.test(window.location.hostname);
+
+  async function tryStaticManifests() {
+    for (let i = 0; i < manifestUrls.length; i += 1) {
+      try {
+        const manifest = await fetchJson(manifestUrls[i], {
+          signal:
+            typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function"
+              ? AbortSignal.timeout(8000)
+              : undefined,
+        });
+        renderTemplateChoices(manifest.variants || []);
+        backendAvailable = false;
+        setStatus("", false);
+        return true;
+      } catch (_) {
+        /* try next URL */
+      }
     }
+    return false;
   }
 
-  const loading = document.getElementById("template-choices-loading");
-  if (loading) loading.remove();
-  const p = document.createElement("p");
-  p.className = "parse-feedback warn";
-  p.textContent =
-    "Could not load template options (API unavailable and templates-manifest.json missing or blocked).";
-  fieldset.appendChild(p);
-  backendAvailable = false;
-  resolvedVariants = null;
+  try {
+    if (!preferStatic) {
+      try {
+        const data = await fetchJson(apiUrl, { signal: apiFetchSignal() });
+        renderTemplateChoices(data.variants || []);
+        backendAvailable = true;
+        return;
+      } catch (_) {
+        /* fall through to static manifests */
+      }
+    }
+
+    if (await tryStaticManifests()) {
+      return;
+    }
+
+    if (preferStatic) {
+      try {
+        const data = await fetchJson(apiUrl, { signal: apiFetchSignal() });
+        renderTemplateChoices(data.variants || []);
+        backendAvailable = true;
+        return;
+      } catch (_) {
+        /* already tried static */
+      }
+    }
+
+    clearTemplateChoiceChildren(fieldset);
+    const p = document.createElement("p");
+    p.className = "parse-feedback warn";
+    p.textContent =
+      "Could not load template options (API unavailable and templates-manifest.json missing or blocked).";
+    fieldset.appendChild(p);
+    backendAvailable = false;
+    resolvedVariants = null;
+  } catch (err) {
+    clearTemplateChoiceChildren(fieldset);
+    const p = document.createElement("p");
+    p.className = "parse-feedback warn";
+    p.textContent = err && err.message ? err.message : "Failed to load templates.";
+    fieldset.appendChild(p);
+    backendAvailable = false;
+    resolvedVariants = null;
+  }
 }
 
-loadTemplateChoices();
+loadTemplateChoices().catch(function (err) {
+  const fieldset = document.getElementById("template-choices");
+  clearTemplateChoiceChildren(fieldset);
+  if (fieldset) {
+    const p = document.createElement("p");
+    p.className = "parse-feedback warn";
+    p.textContent = err && err.message ? err.message : "Failed to load templates.";
+    fieldset.appendChild(p);
+  }
+  backendAvailable = false;
+  resolvedVariants = null;
+});
 
 form.addEventListener("submit", function (e) {
   e.preventDefault();
