@@ -317,6 +317,7 @@ app.post("/api/package", async (req, res) => {
   }
 });
 
+app.use("/docs", express.static(DOCS_DIR));
 app.use(express.static(path.join(__dirname, "public")));
 
 app.listen(PORT, () => {
