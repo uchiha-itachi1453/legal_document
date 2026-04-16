@@ -1,0 +1,25 @@
+{
+  "variants": [
+    {
+      "id": "legal",
+      "label": "Legal",
+      "docxFile": "legal.docx",
+      "outputSuffix": "legal",
+      "filenameParty": "first"
+    },
+    {
+      "id": "legal_vcon",
+      "label": "Legal VCON",
+      "docxFile": "legal_vcon.docx",
+      "outputSuffix": "legal_vcon",
+      "filenameParty": "first"
+    },
+    {
+      "id": "transaction_with_qnet",
+      "label": "Transaction with QNET",
+      "docxFile": "transaction_with_qnet.docx",
+      "outputSuffix": "transaction_with_qnet",
+      "filenameParty": "second"
+    }
+  ]
+}

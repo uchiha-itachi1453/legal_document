@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agreement packager</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <header>
+        <h1>Agreement packager</h1>
+        <p>
+          <strong>1)</strong> Choose templates. <strong>2)</strong> Paste each
+          block and Extract. <strong>3)</strong> Check first &amp; second party
+          fields. <strong>4)</strong> Fill templates (build ZIP).
+          <strong>5)</strong> Download.
+        </p>
+      </header>
+
+      <form id="pack-form" novalidate>
+        <section class="card">
+          <h2>Templates <span>multi-select</span></h2>
+          <p class="hint">
+            Checked items are included in the ZIP. Uncheck any you do not need.
+          </p>
+          <fieldset class="template-choices" id="template-choices">
+            <legend class="sr-only">Templates to generate</legend>
+            <p class="hint" id="template-choices-loading">Loading options…</p>
+          </fieldset>
+        </section>
+
+        <section class="card">
+          <h2>Paste &amp; extract <span>two inputs</span></h2>
+          <div class="paste-two-col">
+            <div class="paste-col">
+              <label>
+                <strong>Input 1 — first party + record 1</strong>
+                <textarea
+                  id="pasted-details-1"
+                  class="paste-area paste-area-compact"
+                  rows="11"
+                  placeholder="Paste block for first party…"
+                ></textarea>
+              </label>
+              <div class="row-btns">
+                <button type="button" class="btn-secondary" id="btn-extract-1">
+                  Extract Input 1
+                </button>
+                <button type="button" class="btn-ghost" id="btn-blank-1">
+                  Blank labels
+                </button>
+              </div>
+              <p class="parse-feedback" id="parse-feedback-1" aria-live="polite"></p>
+            </div>
+            <div class="paste-col">
+              <label>
+                <strong>Input 2 — second party + record 2</strong>
+                <textarea
+                  id="pasted-details-2"
+                  class="paste-area paste-area-compact"
+                  rows="11"
+                  placeholder="Paste block for second party…"
+                ></textarea>
+              </label>
+              <div class="row-btns">
+                <button type="button" class="btn-secondary" id="btn-extract-2">
+                  Extract Input 2
+                </button>
+                <button type="button" class="btn-ghost" id="btn-blank-2">
+                  Blank labels
+                </button>
+              </div>
+              <p class="parse-feedback" id="parse-feedback-2" aria-live="polite"></p>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>First party <span>agreement + record</span></h2>
+          <h3 class="subhead subhead-flush">Agreement</h3>
+          <div class="grid">
+            <label>
+              <strong>Surname</strong>
+              <input type="text" name="first_party_surname" required />
+            </label>
+            <label>
+              <strong>Given name</strong>
+              <input type="text" name="first_party_given_name" required />
+            </label>
+            <label>
+              <strong>Son / daughter of</strong>
+              <select name="first_party_so_do" required>
+                <option value="S/o">S/o</option>
+                <option value="D/o">D/o</option>
+              </select>
+            </label>
+            <label>
+              <strong>Father’s name</strong>
+              <input type="text" name="first_party_father_name" required />
+            </label>
+            <label style="grid-column: 1 / -1">
+              <strong>Current address</strong>
+              <textarea name="first_party_current_address" required></textarea>
+            </label>
+            <label>
+              <strong>Town / city</strong>
+              <input type="text" name="first_party_town_city" required />
+            </label>
+            <label>
+              <strong>District</strong>
+              <input type="text" name="first_party_district" required />
+            </label>
+            <label>
+              <strong>State / province</strong>
+              <input type="text" name="first_party_state_province" required />
+            </label>
+            <label>
+              <strong>Postal / ZIP code</strong>
+              <input type="text" name="first_party_postal_zipcode" required />
+            </label>
+          </div>
+
+          <h3 class="subhead">Record</h3>
+          <div class="grid">
+            <label>
+              <strong>Mobile number</strong>
+              <input type="tel" name="first_record_mobile_number" />
+            </label>
+            <label>
+              <strong>Email address</strong>
+              <input type="email" name="first_record_email_address" />
+            </label>
+            <label>
+              <strong>Valid ID type</strong>
+              <input type="text" name="first_record_valid_id_type" />
+            </label>
+            <label>
+              <strong>Valid ID number</strong>
+              <input type="text" name="first_record_valid_id_number" />
+            </label>
+            <label>
+              <strong>Nationality</strong>
+              <input type="text" name="first_record_nationality" />
+            </label>
+            <label>
+              <strong>Date of birth</strong>
+              <input type="text" name="first_record_date_of_birth" placeholder="DD-MM-YYYY" />
+            </label>
+            <label>
+              <strong>Name of nominee</strong>
+              <input type="text" name="first_record_nominee_name" />
+            </label>
+            <label>
+              <strong>Nominee D.O.B.</strong>
+              <input type="text" name="first_record_nominee_dob" placeholder="DD-MM-YYYY" />
+            </label>
+            <label>
+              <strong>Relationship</strong>
+              <input type="text" name="first_record_nominee_relationship" />
+            </label>
+            <label>
+              <strong>Bank name</strong>
+              <input type="text" name="first_record_bank_name" />
+            </label>
+            <label>
+              <strong>Branch name</strong>
+              <input type="text" name="first_record_branch_name" />
+            </label>
+            <label>
+              <strong>Bank A/c no.</strong>
+              <input type="text" name="first_record_bank_account_no" />
+            </label>
+            <label>
+              <strong>IFSC code</strong>
+              <input type="text" name="first_record_ifsc_code" />
+            </label>
+            <label>
+              <strong>Aadhar number</strong>
+              <input type="text" name="first_record_aadhar_number" />
+            </label>
+            <label style="grid-column: 1 / -1">
+              <strong>Aadhar address</strong>
+              <textarea name="first_record_aadhar_address"></textarea>
+            </label>
+            <label>
+              <strong>Father’s name (record)</strong>
+              <input type="text" name="first_record_fathers_name" />
+            </label>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>Second party <span>agreement + record</span></h2>
+          <h3 class="subhead subhead-flush">Agreement</h3>
+          <div class="grid">
+            <label>
+              <strong>Surname</strong>
+              <input type="text" name="second_party_surname" required />
+            </label>
+            <label>
+              <strong>Given name</strong>
+              <input type="text" name="second_party_given_name" required />
+            </label>
+            <label>
+              <strong>Son / daughter of</strong>
+              <select name="second_party_so_do" required>
+                <option value="S/o">S/o</option>
+                <option value="D/o">D/o</option>
+              </select>
+            </label>
+            <label>
+              <strong>Father’s name</strong>
+              <input type="text" name="second_party_father_name" required />
+            </label>
+            <label style="grid-column: 1 / -1">
+              <strong>Current address</strong>
+              <textarea name="second_party_current_address" required></textarea>
+            </label>
+            <label>
+              <strong>Town / city</strong>
+              <input type="text" name="second_party_town_city" required />
+            </label>
+            <label>
+              <strong>District</strong>
+              <input type="text" name="second_party_district" required />
+            </label>
+            <label>
+              <strong>State / province</strong>
+              <input type="text" name="second_party_state_province" required />
+            </label>
+            <label>
+              <strong>Postal / ZIP code</strong>
+              <input type="text" name="second_party_postal_zipcode" required />
+            </label>
+          </div>
+
+          <h3 class="subhead">Record</h3>
+          <div class="grid">
+            <label>
+              <strong>Mobile number</strong>
+              <input type="tel" name="second_record_mobile_number" />
+            </label>
+            <label>
+              <strong>Email address</strong>
+              <input type="email" name="second_record_email_address" />
+            </label>
+            <label>
+              <strong>Valid ID type</strong>
+              <input type="text" name="second_record_valid_id_type" />
+            </label>
+            <label>
+              <strong>Valid ID number</strong>
+              <input type="text" name="second_record_valid_id_number" />
+            </label>
+            <label>
+              <strong>Nationality</strong>
+              <input type="text" name="second_record_nationality" />
+            </label>
+            <label>
+              <strong>Date of birth</strong>
+              <input type="text" name="second_record_date_of_birth" placeholder="DD-MM-YYYY" />
+            </label>
+            <label>
+              <strong>Name of nominee</strong>
+              <input type="text" name="second_record_nominee_name" />
+            </label>
+            <label>
+              <strong>Nominee D.O.B.</strong>
+              <input type="text" name="second_record_nominee_dob" placeholder="DD-MM-YYYY" />
+            </label>
+            <label>
+              <strong>Relationship</strong>
+              <input type="text" name="second_record_nominee_relationship" />
+            </label>
+            <label>
+              <strong>Bank name</strong>
+              <input type="text" name="second_record_bank_name" />
+            </label>
+            <label>
+              <strong>Branch name</strong>
+              <input type="text" name="second_record_branch_name" />
+            </label>
+            <label>
+              <strong>Bank A/c no.</strong>
+              <input type="text" name="second_record_bank_account_no" />
+            </label>
+            <label>
+              <strong>IFSC code</strong>
+              <input type="text" name="second_record_ifsc_code" />
+            </label>
+            <label>
+              <strong>Aadhar number</strong>
+              <input type="text" name="second_record_aadhar_number" />
+            </label>
+            <label style="grid-column: 1 / -1">
+              <strong>Aadhar address</strong>
+              <textarea name="second_record_aadhar_address"></textarea>
+            </label>
+            <label>
+              <strong>Father’s name (record)</strong>
+              <input type="text" name="second_record_fathers_name" />
+            </label>
+          </div>
+        </section>
+
+        <div class="actions actions-bottom">
+          <button type="button" class="btn-generate" id="btn-generate">
+            Fill templates (generate ZIP)
+          </button>
+          <span class="hint" id="hint-after-generate"></span>
+        </div>
+        <div class="actions actions-bottom">
+          <button type="button" class="btn-download" id="btn-download" disabled>
+            Download ZIP
+          </button>
+          <span class="status" id="status"></span>
+        </div>
+      </form>
+    </div>
+    <script src="/app.js"></script>
+  </body>
+</html>

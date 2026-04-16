@@ -1,0 +1,20 @@
+{
+  "name": "agreement-packager",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Fill Word templates from form data; multi-select ZIP download",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "archiver": "^7.0.1",
+    "docxtemplater": "^3.68.5",
+    "express": "^4.21.0",
+    "pizzip": "^3.2.0"
+  }
+}
