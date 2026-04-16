@@ -1,9 +1,14 @@
 {
   "files": [
     {
-      "id": "docs_readme",
-      "label": "Docs folder readme",
-      "path": "README.txt"
+      "id": "white_pages",
+      "label": "White pages",
+      "path": "Untitled whiteboard.pdf"
+    },
+    {
+      "id": "team_ack_pdf",
+      "label": "Team Acknowledgement PDF",
+      "path": "Team-Acknowledgement.pdf"
     }
   ]
 }
