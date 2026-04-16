@@ -9,7 +9,9 @@ const Docxtemplater = require("docxtemplater");
 
 const PORT = process.env.PORT || 3847;
 const MANIFEST_PATH = path.join(__dirname, "public", "templates-manifest.json");
+const DOCS_MANIFEST_PATH = path.join(__dirname, "public", "docs-manifest.json");
 const TEMPLATES_DIR = path.join(__dirname, "templates");
+const DOCS_DIR = path.join(__dirname, "docs");
 
 const MERGE_FIELD_NAMES = [
   "first_party_surname",
@@ -63,6 +65,20 @@ const MERGE_FIELD_NAMES = [
   "second_record_aadhar_address",
   "second_record_fathers_name",
 ];
+
+function loadDocFiles() {
+  try {
+    const raw = fs.readFileSync(DOCS_MANIFEST_PATH, "utf8");
+    const data = JSON.parse(raw);
+    if (!data || !Array.isArray(data.files)) {
+      return [];
+    }
+    return data.files;
+  } catch (e) {
+    console.warn("docs manifest read failed, using none:", e.message);
+    return [];
+  }
+}
 
 function loadVariants() {
   try {
@@ -168,6 +184,15 @@ app.get("/api/templates", (req, res) => {
   }
 });
 
+app.get("/api/docs", (req, res) => {
+  try {
+    const files = loadDocFiles();
+    res.json({ files });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post("/api/package", async (req, res) => {
   try {
     const variants = loadVariants();
@@ -176,8 +201,16 @@ app.post("/api/package", async (req, res) => {
       ...new Set(normalizeTemplateIds(req.body.templateIds)),
     ].filter((id) => byId.has(id));
 
-    if (templateIds.length === 0) {
-      res.status(400).send("Select at least one template.");
+    const docEntries = loadDocFiles();
+    const docById = new Map(
+      docEntries.filter((d) => d && d.id).map((d) => [String(d.id), d])
+    );
+    let docIds = [
+      ...new Set(normalizeTemplateIds(req.body.docIds)),
+    ].filter((id) => docById.has(id));
+
+    if (templateIds.length === 0 && docIds.length === 0) {
+      res.status(400).send("Select at least one Word template and/or one document from docs.");
       return;
     }
 
@@ -233,6 +266,25 @@ app.post("/api/package", async (req, res) => {
         baseName = `${safeFilePart(surname)}_${safeFilePart(givenName)}_${safeFilePart(suffix)}.docx`;
       }
       const entryName = uniqueZipEntryName(baseName, usedNames);
+      files.push({ name: entryName, buffer });
+    }
+
+    for (const id of docIds) {
+      const entry = docById.get(id);
+      const safeName = path.basename(String(entry.path || ""));
+      if (!safeName) {
+        res.status(500).send(`Invalid path in docs manifest for “${entry.label || id}”.`);
+        return;
+      }
+      const docPath = path.join(DOCS_DIR, safeName);
+      if (!fs.existsSync(docPath)) {
+        res
+          .status(400)
+          .send(`Document not found: docs/${safeName}. Add the file under docs/ and retry.`);
+        return;
+      }
+      const buffer = fs.readFileSync(docPath);
+      const entryName = uniqueZipEntryName(safeName, usedNames);
       files.push({ name: entryName, buffer });
     }
 
