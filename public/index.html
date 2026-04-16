@@ -17,18 +17,33 @@
       <header>
         <h1>Agreement packager</h1>
         <p>
-          <strong>1)</strong> Choose templates. <strong>2)</strong> Paste each
-          block and Extract. <strong>3)</strong> Check first &amp; second party
-          fields. <strong>4)</strong> Fill templates (build ZIP).
-          <strong>5)</strong> Download.
+          <strong>1)</strong> Choose optional docs and Word templates (multi-select).
+          <strong>2)</strong> Paste each block and Extract. <strong>3)</strong>
+          Check first &amp; second party fields (when generating filled Word files).
+          <strong>4)</strong> Build package. <strong>5)</strong> Download the ZIP
+          and/or each file below.
         </p>
       </header>
 
       <form id="pack-form" novalidate>
         <section class="card">
-          <h2>Templates <span>multi-select</span></h2>
+          <h2>Docs folder <span>multi-select</span></h2>
           <p class="hint">
-            Checked items are included in the ZIP. Uncheck any you do not need.
+            Files listed in <code>public/docs-manifest.json</code> (served from
+            <code>docs/</code>). Checked items are copied into the ZIP as-is and
+            appear for individual download after packaging.
+          </p>
+          <fieldset class="template-choices" id="docs-choices">
+            <legend class="sr-only">Documents from docs</legend>
+            <p class="hint" id="docs-choices-loading">Loading docs list…</p>
+          </fieldset>
+        </section>
+
+        <section class="card">
+          <h2>Word templates <span>multi-select</span></h2>
+          <p class="hint">
+            Checked templates are filled from the form and included in the ZIP.
+            Uncheck any you do not need.
           </p>
           <fieldset class="template-choices" id="template-choices">
             <legend class="sr-only">Templates to generate</legend>
@@ -312,16 +327,25 @@
 
         <div class="actions actions-bottom">
           <button type="button" class="btn-generate" id="btn-generate">
-            Fill templates (generate ZIP)
+            Build selected package (ZIP)
           </button>
           <span class="hint" id="hint-after-generate"></span>
         </div>
         <div class="actions actions-bottom">
           <button type="button" class="btn-download" id="btn-download" disabled>
-            Download ZIP
+            Download ZIP (all selected)
           </button>
           <span class="status" id="status"></span>
         </div>
+
+        <section class="card" id="individual-downloads-card" hidden>
+          <h2>Individual downloads</h2>
+          <p class="hint">
+            Each file from your last build. These are the same files inside the ZIP
+            above.
+          </p>
+          <ul id="individual-downloads-list" class="download-list"></ul>
+        </section>
       </form>
     </div>
     <script src="./app.js"></script>
