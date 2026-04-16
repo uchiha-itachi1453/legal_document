@@ -15,6 +15,7 @@
 
   let lastZipBlob = null;
   let lastZipName = "agreement-package.zip";
+  let backendAvailable = true;
 
   const BLANK_TEMPLATE = `Surname-
 Given Name-
@@ -262,6 +263,35 @@ Father's name-
     statusEl.classList.toggle("error", !!isError);
   }
 
+  function renderTemplateChoices(list) {
+    const fieldset = document.getElementById("template-choices");
+    const loading = document.getElementById("template-choices-loading");
+    if (loading) loading.remove();
+
+    if (!Array.isArray(list) || list.length === 0) {
+      const p = document.createElement("p");
+      p.className = "hint warn";
+      p.textContent = "No variants in templates/manifest.json.";
+      fieldset.appendChild(p);
+      return;
+    }
+
+    list.forEach(function (t) {
+      const label = document.createElement("label");
+      label.className = "check-label";
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.name = "templateIds";
+      input.value = t.id;
+      input.checked = true;
+      label.appendChild(input);
+      const span = document.createElement("span");
+      span.textContent = t.label || t.id;
+      label.appendChild(span);
+      fieldset.appendChild(label);
+    });
+  }
+
   document.getElementById("btn-extract-1").addEventListener("click", function () {
     runExtract("first");
   });
@@ -284,7 +314,6 @@ Father's name-
 
   async function loadTemplateChoices() {
     const fieldset = document.getElementById("template-choices");
-    const loading = document.getElementById("template-choices-loading");
     try {
       if (window.location.protocol === "file:") {
         throw new Error(
@@ -303,41 +332,31 @@ Father's name-
         throw new Error(snippet || "Could not load template options.");
       }
       const data = await res.json();
-      const list = data.variants || [];
-      if (loading) loading.remove();
-
-      if (list.length === 0) {
-        const p = document.createElement("p");
-        p.className = "hint warn";
-        p.textContent = "No variants in templates/manifest.json.";
-        fieldset.appendChild(p);
-        return;
-      }
-
-      list.forEach(function (t) {
-        const label = document.createElement("label");
-        label.className = "check-label";
-        const input = document.createElement("input");
-        input.type = "checkbox";
-        input.name = "templateIds";
-        input.value = t.id;
-        input.checked = true;
-        label.appendChild(input);
-        const span = document.createElement("span");
-        span.textContent = t.label || t.id;
-        label.appendChild(span);
-        fieldset.appendChild(label);
-      });
+      renderTemplateChoices(data.variants || []);
     } catch (err) {
-      if (loading) loading.remove();
-      const p = document.createElement("p");
-      p.className = "parse-feedback warn";
-      const msg =
-        err && err.name === "TypeError" && /fetch|Failed to fetch/i.test(String(err.message))
-          ? "Could not reach the server. Use http://localhost:3847 after npm start."
-          : err.message || "Failed to load templates.";
-      p.textContent = msg;
-      fieldset.appendChild(p);
+      try {
+        // Static fallback for GitHub Pages: load template list directly.
+        const fallbackUrl = new URL("../templates/manifest.json", window.location.href).toString();
+        const manifestRes = await fetch(fallbackUrl);
+        if (!manifestRes.ok) {
+          throw new Error("Failed to load templates from templates/manifest.json.");
+        }
+        const manifest = await manifestRes.json();
+        renderTemplateChoices(manifest.variants || []);
+        backendAvailable = false;
+        setStatus(
+          "Template list loaded from static manifest. ZIP generation needs the backend server.",
+          false
+        );
+      } catch (fallbackErr) {
+        const loading = document.getElementById("template-choices-loading");
+        if (loading) loading.remove();
+        const p = document.createElement("p");
+        p.className = "parse-feedback warn";
+        p.textContent =
+          fallbackErr.message || err.message || "Failed to load templates.";
+        fieldset.appendChild(p);
+      }
     }
   }
 
@@ -376,6 +395,13 @@ Father's name-
   btnGenerate.addEventListener("click", async function () {
     setStatus("");
     hintAfterGenerate.textContent = "";
+    if (!backendAvailable) {
+      setStatus(
+        "ZIP generation requires the backend API. Run locally with npm start or deploy the Node server.",
+        true
+      );
+      return;
+    }
 
     const selected = form.querySelectorAll('input[name="templateIds"]:checked');
     if (selected.length === 0) {
