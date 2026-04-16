@@ -25,6 +25,10 @@
   let backendAvailable = true;
   /** Variants from last successful template list load (API or static manifest). */
   let resolvedVariants = null;
+  /** Extra files from docs manifest (API or static). */
+  let resolvedDocs = [];
+  /** Files from the last successful package (for per-file download). */
+  let lastGeneratedFiles = [];
 
   const BLANK_TEMPLATE = `Surname-
 Given Name-
@@ -283,11 +287,20 @@ function applyDataToForm(data) {
   }
 }
 
-function invalidateZip() {
-  lastZipBlob = null;
-  btnDownload.disabled = true;
-  hintAfterGenerate.textContent = "";
-}
+  function invalidateZip() {
+    lastZipBlob = null;
+    lastGeneratedFiles = [];
+    btnDownload.disabled = true;
+    hintAfterGenerate.textContent = "";
+    const card = document.getElementById("individual-downloads-card");
+    const list = document.getElementById("individual-downloads-list");
+    if (list) {
+      list.innerHTML = "";
+    }
+    if (card) {
+      card.hidden = true;
+    }
+  }
 
 form.addEventListener(
   "input",
@@ -382,6 +395,51 @@ function renderTemplateChoices(list) {
     fieldset.appendChild(label);
   });
 }
+
+  function clearDocsChoiceChildren(fieldset) {
+    const loadingEl = document.getElementById("docs-choices-loading");
+    if (loadingEl) {
+      loadingEl.remove();
+    }
+    if (!fieldset) {
+      return;
+    }
+    for (let i = fieldset.children.length - 1; i >= 0; i -= 1) {
+      const el = fieldset.children[i];
+      if (el.tagName !== "LEGEND") {
+        fieldset.removeChild(el);
+      }
+    }
+  }
+
+  function renderDocChoices(list) {
+    const fieldset = document.getElementById("docs-choices");
+    clearDocsChoiceChildren(fieldset);
+    if (!Array.isArray(list) || list.length === 0) {
+      resolvedDocs = [];
+      const p = document.createElement("p");
+      p.className = "hint";
+      p.textContent =
+        "No files listed in public/docs-manifest.json. Add entries and files under docs/ to offer them here.";
+      fieldset.appendChild(p);
+      return;
+    }
+    resolvedDocs = list;
+    list.forEach(function (d) {
+      const label = document.createElement("label");
+      label.className = "check-label";
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.name = "docIds";
+      input.value = d.id;
+      input.checked = true;
+      label.appendChild(input);
+      const span = document.createElement("span");
+      span.textContent = d.label || d.id;
+      label.appendChild(span);
+      fieldset.appendChild(label);
+    });
+  }
 
 document.getElementById("btn-extract-1").addEventListener("click", function () {
   runExtract("first");
@@ -510,6 +568,96 @@ async function loadTemplateChoices() {
   }
 }
 
+async function loadDocsChoices() {
+  const fieldset = document.getElementById("docs-choices");
+
+  async function fetchJson(url, fetchInit) {
+    const res = await fetch(url, fetchInit);
+    if (!res.ok) {
+      throw new Error("HTTP " + res.status);
+    }
+    return res.json();
+  }
+
+  function apiFetchSignal() {
+    if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
+      return AbortSignal.timeout(6000);
+    }
+    return undefined;
+  }
+
+  if (window.location.protocol === "file:") {
+    clearDocsChoiceChildren(fieldset);
+    const p = document.createElement("p");
+    p.className = "parse-feedback warn";
+    p.textContent = "Open over http(s) to load the docs list.";
+    fieldset.appendChild(p);
+    resolvedDocs = [];
+    return;
+  }
+
+  const apiUrl = new URL("./api/docs", window.location.href).toString();
+  const manifestUrls = [new URL("docs-manifest.json", SCRIPT_DIR).toString()];
+  const preferStatic =
+    /\.github\.io$/i.test(window.location.hostname) ||
+    /(^|\.)githubusercontent\.com$/i.test(window.location.hostname);
+
+  async function tryStaticDocs() {
+    for (let i = 0; i < manifestUrls.length; i += 1) {
+      try {
+        const data = await fetchJson(manifestUrls[i], {
+          signal:
+            typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function"
+              ? AbortSignal.timeout(8000)
+              : undefined,
+        });
+        renderDocChoices(data.files || []);
+        return true;
+      } catch (_) {
+        /* try next */
+      }
+    }
+    return false;
+  }
+
+  try {
+    if (!preferStatic) {
+      try {
+        const data = await fetchJson(apiUrl, { signal: apiFetchSignal() });
+        renderDocChoices(data.files || []);
+        return;
+      } catch (_) {
+        /* fall through */
+      }
+    }
+    if (await tryStaticDocs()) {
+      return;
+    }
+    if (preferStatic) {
+      try {
+        const data = await fetchJson(apiUrl, { signal: apiFetchSignal() });
+        renderDocChoices(data.files || []);
+        return;
+      } catch (_) {
+        /* already tried static */
+      }
+    }
+    clearDocsChoiceChildren(fieldset);
+    const p = document.createElement("p");
+    p.className = "hint";
+    p.textContent = "Could not load docs list (missing public/docs-manifest.json).";
+    fieldset.appendChild(p);
+    resolvedDocs = [];
+  } catch (err) {
+    clearDocsChoiceChildren(fieldset);
+    const p = document.createElement("p");
+    p.className = "parse-feedback warn";
+    p.textContent = err && err.message ? err.message : "Failed to load docs.";
+    fieldset.appendChild(p);
+    resolvedDocs = [];
+  }
+}
+
 loadTemplateChoices().catch(function (err) {
   const fieldset = document.getElementById("template-choices");
   clearTemplateChoiceChildren(fieldset);
@@ -521,6 +669,18 @@ loadTemplateChoices().catch(function (err) {
   }
   backendAvailable = false;
   resolvedVariants = null;
+});
+
+loadDocsChoices().catch(function (err) {
+  const fieldset = document.getElementById("docs-choices");
+  clearDocsChoiceChildren(fieldset);
+  if (fieldset) {
+    const p = document.createElement("p");
+    p.className = "parse-feedback warn";
+    p.textContent = err && err.message ? err.message : "Failed to load docs.";
+    fieldset.appendChild(p);
+  }
+  resolvedDocs = [];
 });
 
 form.addEventListener("submit", function (e) {
@@ -594,6 +754,62 @@ function renderDocxToBlob(arrayBuffer, data, Docxtemplater, PizZip) {
   return doc.getZip().generate({ type: "blob", compression: "DEFLATE" });
 }
 
+function renderIndividualDownloadList(items) {
+  const card = document.getElementById("individual-downloads-card");
+  const list = document.getElementById("individual-downloads-list");
+  if (!card || !list) {
+    return;
+  }
+  list.innerHTML = "";
+  if (!items || items.length === 0) {
+    card.hidden = true;
+    return;
+  }
+  items.forEach(function (item) {
+    const li = document.createElement("li");
+    li.className = "file-download-row";
+    const span = document.createElement("span");
+    span.className = "file-download-name";
+    span.textContent = item.name;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn-row-download";
+    btn.textContent = "Download";
+    btn.addEventListener("click", function () {
+      const url = URL.createObjectURL(item.blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = item.name;
+      a.click();
+      URL.revokeObjectURL(url);
+      setStatus("Download: " + item.name, false);
+    });
+    li.appendChild(span);
+    li.appendChild(btn);
+    list.appendChild(li);
+  });
+  card.hidden = false;
+}
+
+async function expandZipBlobToFiles(zipBlob) {
+  const { default: JSZip } = await import("https://esm.sh/jszip@3.10.1");
+  const z = await JSZip.loadAsync(zipBlob);
+  const out = [];
+  for (const key of Object.keys(z.files)) {
+    const entry = z.files[key];
+    if (entry.dir) {
+      continue;
+    }
+    const blob = await entry.async("blob");
+    const name = (entry.name || key).split("/").pop() || entry.name || "file";
+    out.push({ name: name, blob: blob });
+  }
+  out.sort(function (a, b) {
+    return a.name.localeCompare(b.name);
+  });
+  return out;
+}
+
 async function fetchPackageFromServer() {
   const res = await fetch(new URL("./api/package", window.location.href).toString(), {
     method: "POST",
@@ -615,73 +831,121 @@ async function fetchPackageFromServer() {
       lastZipName = decodeURIComponent(m[1] || m[2] || lastZipName);
     }
   }
+  try {
+    lastGeneratedFiles = await expandZipBlobToFiles(lastZipBlob);
+  } catch (_) {
+    lastGeneratedFiles = [];
+  }
+  renderIndividualDownloadList(lastGeneratedFiles);
 }
 
 async function fetchPackageInBrowser() {
-  const [{ default: Docxtemplater }, { default: PizZip }, { default: JSZip }] = await Promise.all([
-    import("https://esm.sh/docxtemplater@3.68.5"),
-    import("https://esm.sh/pizzip@3.2.0"),
-    import("https://esm.sh/jszip@3.10.1"),
-  ]);
+  const checkedT = form.querySelectorAll('input[name="templateIds"]:checked');
+  const checkedD = form.querySelectorAll('input[name="docIds"]:checked');
+  const byIdTemplates =
+    resolvedVariants && resolvedVariants.length
+      ? new Map(resolvedVariants.map((v) => [v.id, v]))
+      : new Map();
+  const templateIds = [...new Set(Array.from(checkedT).map((i) => i.value))].filter((id) =>
+    byIdTemplates.has(id)
+  );
+  const byDocId = new Map((resolvedDocs || []).map((d) => [d.id, d]));
+  const docIds = [...new Set(Array.from(checkedD).map((i) => i.value))].filter((id) =>
+    byDocId.has(id)
+  );
 
-  if (!resolvedVariants || resolvedVariants.length === 0) {
+  if (templateIds.length === 0 && docIds.length === 0) {
+    throw new Error("Select at least one Word template and/or one document from docs.");
+  }
+
+  const needTemplates = templateIds.length > 0;
+  if (needTemplates && (!resolvedVariants || resolvedVariants.length === 0)) {
     throw new Error("Template list not loaded. Refresh the page.");
   }
 
-  const byId = new Map(resolvedVariants.map((v) => [v.id, v]));
-  const checked = form.querySelectorAll('input[name="templateIds"]:checked');
-  const templateIds = [...new Set(Array.from(checked).map((i) => i.value))].filter((id) =>
-    byId.has(id)
-  );
-  if (templateIds.length === 0) {
-    throw new Error("Select at least one template.");
+  let Docxtemplater;
+  let PizZip;
+  let JSZip;
+  if (needTemplates) {
+    const mods = await Promise.all([
+      import("https://esm.sh/docxtemplater@3.68.5"),
+      import("https://esm.sh/pizzip@3.2.0"),
+      import("https://esm.sh/jszip@3.10.1"),
+    ]);
+    Docxtemplater = mods[0].default;
+    PizZip = mods[1].default;
+    JSZip = mods[2].default;
+  } else {
+    const mod = await import("https://esm.sh/jszip@3.10.1");
+    JSZip = mod.default;
   }
 
-  const mergeData = mergeDataFromForm(form);
+  const mergeData = needTemplates ? mergeDataFromForm(form) : {};
   const usedNames = new Set();
   const files = [];
   const templatesBase = new URL("../templates/", SCRIPT_DIR).href;
+  const docsBase = new URL("../docs/", SCRIPT_DIR).href;
 
-  for (const id of templateIds) {
-    const variant = byId.get(id);
-    const baseFile = pathBasename(variant.docxFile);
-    if (!baseFile || !String(variant.docxFile || "").trim()) {
-      throw new Error(`Invalid docxFile in manifest for “${variant.label || id}”.`);
+  if (needTemplates) {
+    for (const id of templateIds) {
+      const variant = byIdTemplates.get(id);
+      const baseFile = pathBasename(variant.docxFile);
+      if (!baseFile || !String(variant.docxFile || "").trim()) {
+        throw new Error(`Invalid docxFile in manifest for “${variant.label || id}”.`);
+      }
+
+      const templateUrl =
+        templatesBase.replace(/\/?$/, "/") + encodeURIComponent(baseFile);
+      const tRes = await fetch(templateUrl);
+      if (!tRes.ok) {
+        throw new Error(
+          `Could not load templates/${baseFile} (${tRes.status}). Ensure .docx files are committed and published with the site.`
+        );
+      }
+
+      const buf = await tRes.arrayBuffer();
+      let blob;
+      try {
+        blob = renderDocxToBlob(buf, mergeData, Docxtemplater, PizZip);
+      } catch (err) {
+        const msg =
+          err && err.properties && err.properties.errors
+            ? err.properties.errors.map((e) => e.message).join("; ")
+            : err.message;
+        throw new Error(`Could not fill “${variant.label || id}” (check {{placeholders}}): ${msg}`);
+      }
+
+      const suffix =
+        variant.outputSuffix || (variant.id === "legal_vcon" ? "legal_vcon" : "legal");
+      let baseName;
+      if (variant.filenameParty === "second") {
+        baseName = `${safeFilePart(suffix)}.docx`;
+      } else {
+        baseName = `${safeFilePart(mergeData.first_party_surname)}_${safeFilePart(
+          mergeData.first_party_given_name
+        )}_${safeFilePart(suffix)}.docx`;
+      }
+      const entryName = uniqueZipEntryName(baseName, usedNames);
+      files.push({ name: entryName, blob: blob });
     }
+  }
 
-    const templateUrl =
-      templatesBase.replace(/\/?$/, "/") + encodeURIComponent(baseFile);
-    const tRes = await fetch(templateUrl);
-    if (!tRes.ok) {
+  for (const id of docIds) {
+    const entry = byDocId.get(id);
+    const baseFile = pathBasename(entry.path);
+    if (!baseFile || !String(entry.path || "").trim()) {
+      throw new Error(`Invalid path in docs manifest for “${entry.label || id}”.`);
+    }
+    const docUrl = docsBase.replace(/\/?$/, "/") + encodeURIComponent(baseFile);
+    const dRes = await fetch(docUrl);
+    if (!dRes.ok) {
       throw new Error(
-        `Could not load templates/${baseFile} (${tRes.status}). Ensure .docx files are committed and published with the site.`
+        `Could not load docs/${baseFile} (${dRes.status}). Add the file under docs/ and publish it.`
       );
     }
-
-    const buf = await tRes.arrayBuffer();
-    let blob;
-    try {
-      blob = renderDocxToBlob(buf, mergeData, Docxtemplater, PizZip);
-    } catch (err) {
-      const msg =
-        err && err.properties && err.properties.errors
-          ? err.properties.errors.map((e) => e.message).join("; ")
-          : err.message;
-      throw new Error(`Could not fill “${variant.label || id}” (check {{placeholders}}): ${msg}`);
-    }
-
-    const suffix =
-      variant.outputSuffix || (variant.id === "legal_vcon" ? "legal_vcon" : "legal");
-    let baseName;
-    if (variant.filenameParty === "second") {
-      baseName = `${safeFilePart(suffix)}.docx`;
-    } else {
-      baseName = `${safeFilePart(mergeData.first_party_surname)}_${safeFilePart(
-        mergeData.first_party_given_name
-      )}_${safeFilePart(suffix)}.docx`;
-    }
-    const entryName = uniqueZipEntryName(baseName, usedNames);
-    files.push({ name: entryName, blob });
+    const blob = await dRes.blob();
+    const entryName = uniqueZipEntryName(baseFile, usedNames);
+    files.push({ name: entryName, blob: blob });
   }
 
   const zip = new JSZip();
@@ -691,21 +955,28 @@ async function fetchPackageInBrowser() {
   lastZipBlob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   lastZipName = `agreement-package-${stamp}.zip`;
+  lastGeneratedFiles = files.map(function (f) {
+    return { name: f.name, blob: f.blob };
+  });
+  renderIndividualDownloadList(lastGeneratedFiles);
 }
 
 btnGenerate.addEventListener("click", async function () {
   setStatus("");
   hintAfterGenerate.textContent = "";
 
-  const selected = form.querySelectorAll('input[name="templateIds"]:checked');
-  if (selected.length === 0) {
-    setStatus("Select at least one template.", true);
+  const templateChecked = form.querySelectorAll('input[name="templateIds"]:checked');
+  const docChecked = form.querySelectorAll('input[name="docIds"]:checked');
+  if (templateChecked.length === 0 && docChecked.length === 0) {
+    setStatus("Select at least one Word template and/or one document from docs.", true);
     return;
   }
 
-  if (!form.reportValidity()) {
-    setStatus("Fill required fields in First party and Second party.", true);
-    return;
+  if (templateChecked.length > 0) {
+    if (!form.reportValidity()) {
+      setStatus("Fill required fields in First party and Second party.", true);
+      return;
+    }
   }
 
   btnGenerate.disabled = true;
@@ -714,7 +985,8 @@ btnGenerate.addEventListener("click", async function () {
       try {
         await fetchPackageFromServer();
         btnDownload.disabled = false;
-        hintAfterGenerate.textContent = "ZIP is ready — click Download.";
+        hintAfterGenerate.textContent =
+          "ZIP and individual files are ready — use Download ZIP or the list below.";
         setStatus("Ready to download.");
         return;
       } catch (_) {
@@ -723,10 +995,13 @@ btnGenerate.addEventListener("click", async function () {
     }
     await fetchPackageInBrowser();
     btnDownload.disabled = false;
-    hintAfterGenerate.textContent = "ZIP is ready — click Download.";
+    hintAfterGenerate.textContent =
+      "ZIP and individual files are ready — use Download ZIP or the list below.";
     setStatus("Ready to download.");
   } catch (err) {
     lastZipBlob = null;
+    lastGeneratedFiles = [];
+    renderIndividualDownloadList([]);
     btnDownload.disabled = true;
     setStatus(err.message || "Something went wrong.", true);
   } finally {
@@ -736,7 +1011,7 @@ btnGenerate.addEventListener("click", async function () {
 
 btnDownload.addEventListener("click", function () {
   if (!lastZipBlob) {
-    setStatus("Click “Fill templates (generate ZIP)” first.", true);
+    setStatus("Build the package first (ZIP).", true);
     return;
   }
   const url = URL.createObjectURL(lastZipBlob);
@@ -745,6 +1020,6 @@ btnDownload.addEventListener("click", function () {
   a.download = lastZipName;
   a.click();
   URL.revokeObjectURL(url);
-  setStatus("Download started.");
+  setStatus("ZIP download started.");
 });
 })();
