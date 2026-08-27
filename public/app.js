@@ -40,28 +40,6 @@ District-
 State/Province-
 Postal /Zipcode-
 
-Mobile Number-
-Email Address-
-
-Valid ID type-
-Valid ID number-
-
-Nationality-
-Date of Birth-
-
-Name of Nominee-
-Nominee D. O. B-
-Relationship-
-
-PAN-
-
-Bank Name-
-Branch Name-
-Bank A/c No-
-Ifsc Code-
-
-Aadhar Number-
-Aadhar Address-
 Father's name-
 `;
 
