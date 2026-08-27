@@ -335,6 +335,23 @@ button.btn-download:disabled {
   border: 0;
 }
 
+.template h2 {
+  font-size: 1rem;
+  color: #f8f9fa;
+  border-bottom: 2px solid #007bff;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+  text-align: center;
+  letter-spacing: 1px;
+}
+
+.template h3 {
+  font-size: 0.75rem;
+  color: #f8f9fa;
+  margin: 8px 0;
+  font-weight: 500;
+}
+
 .download-list {
   list-style: none;
   margin: 0.75rem 0 0;
